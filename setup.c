@@ -42,6 +42,7 @@ cMenuFemonSetup::cMenuFemonSetup()
 
   skinsM[eFemonSkinClassic]          = tr("Classic");
   skinsM[eFemonSkinElchi]            = tr("Elchi");
+  skinsM[eFemonSkinControl]          = tr("Control");
 
   themesM[eFemonThemeClassic]        = tr("Classic");
   themesM[eFemonThemeElchi]          = tr("Elchi");

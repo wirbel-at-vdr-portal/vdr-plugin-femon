@@ -111,6 +111,7 @@ enum eFemonSkins
 {
   eFemonSkinClassic,
   eFemonSkinElchi,
+  eFemonSkinControl,
   eFemonSkinMaxNumber
 };
 
