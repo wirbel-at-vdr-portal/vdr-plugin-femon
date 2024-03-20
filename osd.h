@@ -20,7 +20,6 @@
 #include "receiver.h"
 #include "svdrpservice.h"
 
-#define MAX_BM_NUMBER 8
 
 class cFemonOsd : public cOsdObject, public cThread, public cStatus {
 private:
