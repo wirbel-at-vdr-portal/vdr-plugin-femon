@@ -551,3 +551,7 @@ VDR Plugin 'femon' Revision History
 2019-xx-xx: Version 2.4.1
 
 - Added signal level units (Thanks to Winfried).
+
+
+2024-04-27:
+- Makefile: silence gcc by default && link librepfunc for next changes
