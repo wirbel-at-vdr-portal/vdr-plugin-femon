@@ -24,10 +24,10 @@ PLGCFG = $(call PKGCFG,plgcfg)
 TMPDIR ?= /tmp
 
 ### The compiler options:
-
 export CFLAGS   = $(call PKGCFG,cflags)
 export CXXFLAGS = $(call PKGCFG,cxxflags)
 STRIP           ?= /bin/true
+Q               ?= @
 
 ### The version number of VDR's plugin API:
 
@@ -91,15 +91,15 @@ I18Nmsgs  = $(addprefix $(DESTDIR)$(LOCDIR)/, $(addsuffix /LC_MESSAGES/vdr-$(PLU
 I18Npot   = $(PODIR)/$(PLUGIN).pot
 
 %.mo: %.po
-	@echo MO $@
+#	@echo MO $@
 	$(Q)msgfmt -c -o $@ $<
 
 $(I18Npot): $(wildcard *.c)
-	@echo GT $@
+#	@echo GT $@
 	$(Q)xgettext -C -cTRANSLATORS --no-wrap --no-location -k -ktr -ktrNOOP --package-name=vdr-$(PLUGIN) --package-version=$(VERSION) --msgid-bugs-address='<see README>' -o $@ `ls $^`
 
 %.po: $(I18Npot)
-	@echo PO $@
+#	@echo PO $@
 	$(Q)msgmerge -U --no-wrap --no-location --backup=none -q -N $@ $<
 	@touch $@
 
@@ -116,7 +116,7 @@ install-i18n: $(I18Nmsgs)
 
 $(SOFILE): $(OBJS)
 	@echo LD $@
-	$(Q)$(CXX) $(CXXFLAGS) $(LDFLAGS) -shared $(OBJS) -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $(LDFLAGS) -shared $(OBJS) -o $@ -lrepfunc
 	$(Q)$(STRIP) $@
 
 install-lib: $(SOFILE)
