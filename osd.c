@@ -4,14 +4,11 @@
  * See the README file for copyright information and how to reach the author.
  *
  */
-
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
-
-#include <ctype.h>
-#include <math.h>
-
+#include <string>
+#include <iostream>
+#include <cctype>
+#include <cmath>
+#include <repfunc.h>
 #include "config.h"
 #include "iptvservice.h"
 #include "log.h"
@@ -19,126 +16,8 @@
 #include "symbol.h"
 #include "tools.h"
 #include "osd.h"
+#include "osd-defines.h"
 
-#define CHANNELINPUT_TIMEOUT      1000
-#define SVDRPPLUGIN               "svdrpservice"
-
-#define OSDWIDTH                  osdWidthM              // in pixels
-#define OSDHEIGHT                 osdHeightM             // in pixels
-#define OSDROWHEIGHT              fontM->Height()        // in pixels
-#define OSDINFOHEIGHT             (OSDROWHEIGHT * 14)     // in pixels (14 rows)
-#define OSDSTATUSHEIGHT           (OSDROWHEIGHT * 5)      // in pixels (5 rows)
-#define OSDSYMBOL(id)             femonSymbols.Get(id)
-#define OSDSPACING                femonSymbols.GetSpacing()
-#define OSDROUNDING               femonSymbols.GetRounding()
-#define IS_OSDROUNDING            (FemonConfig.GetSkin() == eFemonSkinElchi)
-#define IS_OSDRESOLUTION(r1, r2)  (abs(r1 - r2) < 20)
-#define OSDINFOWIN_Y(offset)      (FemonConfig.GetPosition() ? (OSDHEIGHT - OSDINFOHEIGHT + offset) : offset)
-#define OSDINFOWIN_X(col)         ((col == 4) ? int(round(OSDWIDTH * 0.76)) : \
-                                   (col == 3) ? int(round(OSDWIDTH * 0.51)) : \
-                                   (col == 2) ? int(round(OSDWIDTH * 0.26)) : \
-                                                int(round(OSDWIDTH * 0.025)))
-#define OSDSTATUSWIN_Y(offset)    (FemonConfig.GetPosition() ? offset : (OSDHEIGHT - OSDSTATUSHEIGHT + offset))
-#define OSDSTATUSWIN_X(col)       ((col == 6) ? int(round(OSDWIDTH * 0.84)) : \
-                                   (col == 5) ? int(round(OSDWIDTH * 0.66)) : \
-                                   (col == 4) ? int(round(OSDWIDTH * 0.50)) : \
-                                   (col == 3) ? int(round(OSDWIDTH * 0.35)) : \
-                                   (col == 2) ? int(round(OSDWIDTH * 0.19)) : \
-                                                int(round(OSDWIDTH * 0.025)))
-#define OSDSTATUSWIN_XSYMBOL(c,w) (c * ((OSDWIDTH - (5 * w)) / 6) + ((c - 1) * w))
-#define OSDBARWIDTH(x)            (OSDWIDTH * x / 100)
-
-#define OSDDRAWSTATUSBM(spacing) \
-        if (bm) { \
-           x -= bm->Width() + spacing; \
-           y = (OSDROWHEIGHT - bm->Height()) / 2; \
-           if (y < 0) y = 0; \
-           osdM->DrawBitmap(x, OSDSTATUSWIN_Y(offset) + y, *bm, FemonTheme[FemonConfig.GetTheme()].clrTitleText, FemonTheme[FemonConfig.GetTheme()].clrTitleBackground); \
-           }
-
-#define OSDDRAWSTATUSFRONTEND(column, bitmap, status) \
-        osdM->DrawBitmap(OSDSTATUSWIN_XSYMBOL(column, x), OSDSTATUSWIN_Y(offset) + y, bitmap, (frontendStatusM & status) ? FemonTheme[FemonConfig.GetTheme()].clrActiveText : FemonTheme[FemonConfig.GetTheme()].clrRed, FemonTheme[FemonConfig.GetTheme()].clrBackground)
-
-#define OSDDRAWSTATUSVALUES(label1, label2, label3, label4, label5, label6) \
-        osdM->DrawText(OSDSTATUSWIN_X(1), OSDSTATUSWIN_Y(offset), label1, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDSTATUSWIN_X(2), OSDSTATUSWIN_Y(offset), label2, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDSTATUSWIN_X(3), OSDSTATUSWIN_Y(offset), label3, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDSTATUSWIN_X(4), OSDSTATUSWIN_Y(offset), label4, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDSTATUSWIN_X(5), OSDSTATUSWIN_Y(offset), label5, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDSTATUSWIN_X(6), OSDSTATUSWIN_Y(offset), label6, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM)
-
-#define OSDDRAWSTATUSBAR(value) \
-        if (value > 0) { \
-           int barvalue = OSDBARWIDTH(value); \
-           osdM->DrawRectangle(0, OSDSTATUSWIN_Y(offset) + 3, min(OSDBARWIDTH(FemonConfig.GetRedLimit()), barvalue), OSDSTATUSWIN_Y(offset) + OSDROWHEIGHT - 3, FemonTheme[FemonConfig.GetTheme()].clrRed); \
-           if (barvalue > OSDBARWIDTH(FemonConfig.GetRedLimit())) \
-              osdM->DrawRectangle(OSDBARWIDTH(FemonConfig.GetRedLimit()), OSDSTATUSWIN_Y(offset) + 3, min((OSDWIDTH * FemonConfig.GetGreenLimit() / 100), barvalue), OSDSTATUSWIN_Y(offset) + OSDROWHEIGHT - 3, FemonTheme[FemonConfig.GetTheme()].clrYellow); \
-           if (barvalue > OSDBARWIDTH(FemonConfig.GetGreenLimit())) \
-              osdM->DrawRectangle(OSDBARWIDTH(FemonConfig.GetGreenLimit()), OSDSTATUSWIN_Y(offset) + 3, barvalue, OSDSTATUSWIN_Y(offset) + OSDROWHEIGHT - 3, FemonTheme[FemonConfig.GetTheme()].clrGreen); \
-           }
-
-#define OSDDRAWSTATUSTITLEBAR(title) \
-        osdM->DrawRectangle(0, OSDSTATUSWIN_Y(offset), OSDWIDTH, OSDSTATUSWIN_Y(offset) + OSDROWHEIGHT - 1, FemonTheme[FemonConfig.GetTheme()].clrTitleBackground); \
-        osdM->DrawText(OSDSTATUSWIN_X(1), OSDSTATUSWIN_Y(offset), title, FemonTheme[FemonConfig.GetTheme()].clrTitleText, FemonTheme[FemonConfig.GetTheme()].clrTitleBackground, fontM); \
-        if (IS_OSDROUNDING) { \
-           osdM->DrawEllipse(0, OSDSTATUSWIN_Y(0), OSDROUNDING, OSDSTATUSWIN_Y(OSDROUNDING), clrTransparent, -2); \
-           osdM->DrawEllipse(OSDWIDTH - OSDROUNDING, OSDSTATUSWIN_Y(0), OSDWIDTH, OSDSTATUSWIN_Y(OSDROUNDING), clrTransparent, -1); \
-           } \
-        osdM->DrawRectangle(0, OSDSTATUSWIN_Y(offset) + OSDROWHEIGHT, OSDWIDTH, OSDSTATUSWIN_Y(offset) + OSDSTATUSHEIGHT - 1, FemonTheme[FemonConfig.GetTheme()].clrBackground)
-
-#define OSDDRAWSTATUSBOTTOMBAR() \
-        if (IS_OSDROUNDING) { \
-           osdM->DrawEllipse(0, OSDSTATUSWIN_Y(OSDSTATUSHEIGHT) - OSDROUNDING, OSDROUNDING, OSDSTATUSWIN_Y(OSDSTATUSHEIGHT), clrTransparent, -3); \
-           osdM->DrawEllipse(OSDWIDTH - OSDROUNDING, OSDSTATUSWIN_Y(OSDSTATUSHEIGHT) - OSDROUNDING, OSDWIDTH, OSDSTATUSWIN_Y(OSDSTATUSHEIGHT), clrTransparent, -4); \
-           }
-
-#define OSDCLEARSTATUS() \
-        osdM->DrawRectangle(0, OSDSTATUSWIN_Y(0), OSDWIDTH, OSDSTATUSWIN_Y(OSDSTATUSHEIGHT) - 1, clrTransparent)
-
-#define OSDDRAWINFOLEFT(label, value) \
-        osdM->DrawText(OSDINFOWIN_X(1), OSDINFOWIN_Y(offset), label, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDINFOWIN_X(2), OSDINFOWIN_Y(offset), value, FemonTheme[FemonConfig.GetTheme()].clrActiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM)
-
-#define OSDDRAWINFORIGHT(label, value) \
-        osdM->DrawText(OSDINFOWIN_X(3), OSDINFOWIN_Y(offset), label, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDINFOWIN_X(4), OSDINFOWIN_Y(offset), value, FemonTheme[FemonConfig.GetTheme()].clrActiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM)
-
-#define OSDDRAWINFOACTIVE(label, value) \
-        osdM->DrawText(OSDINFOWIN_X(1), OSDINFOWIN_Y(offset), label, FemonTheme[FemonConfig.GetTheme()].clrActiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDINFOWIN_X(3), OSDINFOWIN_Y(offset), value, FemonTheme[FemonConfig.GetTheme()].clrActiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM)
-
-#define OSDDRAWINFOINACTIVE(label, value) \
-        osdM->DrawText(OSDINFOWIN_X(1), OSDINFOWIN_Y(offset), label, FemonTheme[FemonConfig.GetTheme()].clrInactiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM); \
-        osdM->DrawText(OSDINFOWIN_X(3), OSDINFOWIN_Y(offset), value, FemonTheme[FemonConfig.GetTheme()].clrActiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM)
-
-#define OSDDRAWINFOLINE(label) \
-        osdM->DrawText(OSDINFOWIN_X(1), OSDINFOWIN_Y(offset), label, FemonTheme[FemonConfig.GetTheme()].clrActiveText, FemonTheme[FemonConfig.GetTheme()].clrBackground, fontM)
-
-#define OSDDRAWINFOTITLEBAR(title) \
-        osdM->DrawRectangle(0, OSDINFOWIN_Y(offset), OSDWIDTH, OSDINFOWIN_Y(offset) + OSDROWHEIGHT - 1, FemonTheme[FemonConfig.GetTheme()].clrTitleBackground); \
-        osdM->DrawText(OSDINFOWIN_X(1), OSDINFOWIN_Y(offset), title, FemonTheme[FemonConfig.GetTheme()].clrTitleText, FemonTheme[FemonConfig.GetTheme()].clrTitleBackground, fontM); \
-        if (IS_OSDROUNDING) { \
-           osdM->DrawEllipse(0, OSDINFOWIN_Y(0), OSDROUNDING, OSDINFOWIN_Y(OSDROUNDING), clrTransparent, -2); \
-           osdM->DrawEllipse(OSDWIDTH - OSDROUNDING, OSDINFOWIN_Y(0), OSDWIDTH, OSDINFOWIN_Y(OSDROUNDING), clrTransparent, -1); \
-           } \
-        osdM->DrawRectangle(0, OSDINFOWIN_Y(offset) + OSDROWHEIGHT, OSDWIDTH, OSDINFOWIN_Y(offset) + OSDINFOHEIGHT - 1, FemonTheme[FemonConfig.GetTheme()].clrBackground)
-
-#define OSDDRAWINFOBOTTOMBAR() \
-        if (IS_OSDROUNDING) { \
-           osdM->DrawEllipse(0, OSDINFOWIN_Y(OSDINFOHEIGHT) - OSDROUNDING, OSDROUNDING, OSDINFOWIN_Y(OSDINFOHEIGHT), clrTransparent, -3); \
-           osdM->DrawEllipse((OSDWIDTH - OSDROUNDING), OSDINFOWIN_Y(OSDINFOHEIGHT) - OSDROUNDING, OSDWIDTH, OSDINFOWIN_Y(OSDINFOHEIGHT), clrTransparent, -4); \
-           }
-
-#define OSDCLEARINFO() \
-        osdM->DrawRectangle(0, OSDINFOWIN_Y(0), OSDWIDTH, OSDINFOWIN_Y(OSDINFOHEIGHT) - 1, clrTransparent)
-
-#ifndef MINFONTSIZE
-#define MINFONTSIZE 10
-#endif
-
-#ifndef MAXFONTSIZE
-#define MAXFONTSIZE 64
-#endif
 
 class cFemonDummyFont : public cFont {
 public:
@@ -253,8 +132,8 @@ void cFemonOsd::DrawStatusWindow(void)
      int x = OSDWIDTH - OSDROUNDING;
      int y = 0;
      eTrackType track = cDevice::PrimaryDevice()->GetCurrentAudioTrack();
-
-     OSDDRAWSTATUSTITLEBAR(*cString::sprintf("%d%s %s", numberM ? numberM : channel->Number(), numberM ? "-" : "", channel->ShortName(true)));
+     std::string ch(*cString::sprintf("%d%s %s", numberM ? numberM : channel->Number(), numberM ? "-" : "", channel->ShortName(true)));
+     OSDDRAWSTATUSTITLEBAR(ch.c_str());
      if (svdrpFrontendM >= 0) {
         bm = &OSDSYMBOL(SYMBOL_SVDRP);
         OSDDRAWSTATUSBM(OSDSPACING);
@@ -365,6 +244,74 @@ void cFemonOsd::DrawStatusWindow(void)
         OSDDRAWSTATUSBM(OSDSPACING);
         }
      offset += OSDROWHEIGHT;
+
+     {
+     // inform other plugins about menu title
+     std::string details;
+     if (channel->Ca() > 0xFF)
+        details = "CA";
+
+     if (receiverM) {
+        int i = receiverM->VideoAspectRatio();
+        if (i > VIDEO_ASPECT_RATIO_EXTENDED) {
+           details += ' ';
+           details += *getAspectRatio(i);
+           }
+
+        i = receiverM->VideoFormat();
+        if (i > VIDEO_FORMAT_COMPONENT) {
+           details += ' ';
+           details += *getVideoFormat(i);
+           }
+
+        i = receiverM->VideoCodec();
+        if (i > VIDEO_CODEC_UNKNOWN) {
+           details += ' ';
+           details += *getVideoCodec(i);
+           }
+
+        bool found = true;
+        i = receiverM->VideoVerticalSize();
+        if (IS_OSDRESOLUTION(i, 2160))      i = 2160;
+        else if (IS_OSDRESOLUTION(i, 1080)) i = 1080;
+        else if (IS_OSDRESOLUTION(i, 720))  i = 720;
+        else if (IS_OSDRESOLUTION(i, 576))  i = 576;
+        else if (IS_OSDRESOLUTION(i, 480))  i = 480;
+        else found = false;
+        if (found) {
+           details += " " + IntToStr(i);
+           switch(receiverM->VideoScan()) {
+              case VIDEO_SCAN_INTERLACED:  details += 'i'; break;
+              case VIDEO_SCAN_PROGRESSIVE: details += 'p'; break;
+              default:;
+              }
+           }
+        }
+
+     if (IS_AUDIO_TRACK(track)) {
+        switch(cDevice::PrimaryDevice()->GetAudioChannel()) {
+           case 1:  details += " left";   break;
+           case 2:  details += " right";  break;
+           default: details += " stereo"; break;
+           }
+        }
+     else if (receiverM && receiverM->AC3Valid() && IS_DOLBY_TRACK(track)) {
+        details += " DD";
+        if (receiverM->AC3_5_1())
+           details += "-5.1";
+        else if (receiverM->AC3_2_0())
+           details += "-2.0";
+        }
+
+     details += " #" + IntToStr(cDevice::ActualDevice()->CardIndex());
+
+     if (svdrpFrontendM >= 0)
+        details += " SVDRP";
+
+     cStatus::MsgOsdTitle((BackFill(ch,40) + FrontFill(details,40)).c_str());
+     }
+
+     int n = 0;
      if (strengthValidM)
         OSDDRAWSTATUSBAR(strengthM);
      offset += OSDROWHEIGHT;
@@ -382,6 +329,7 @@ void cFemonOsd::DrawStatusWindow(void)
      x = OSDSYMBOL(SYMBOL_LOCK).Width();
      y = (OSDROWHEIGHT - OSDSYMBOL(SYMBOL_LOCK).Height()) / 2;
      if (frontendStatusValidM) {
+        std::string fe_status;
         OSDDRAWSTATUSFRONTEND(1, OSDSYMBOL(SYMBOL_LOCK),    DTV_STAT_HAS_LOCK);
         OSDDRAWSTATUSFRONTEND(2, OSDSYMBOL(SYMBOL_SIGNAL),  DTV_STAT_HAS_SIGNAL);
         OSDDRAWSTATUSFRONTEND(3, OSDSYMBOL(SYMBOL_CARRIER), DTV_STAT_HAS_CARRIER);
@@ -401,48 +349,54 @@ void cFemonOsd::DrawInfoWindow(void)
 
   if (osdM && channel) {
      int offset = 0;
+     int n = OSDSTATUSROWS;
      eTrackType track = cDevice::PrimaryDevice()->GetCurrentAudioTrack();
 
      switch (displayModeM) {
-       case eFemonModeTransponder:
+       case eFemonModeTransponder: {
             OSDDRAWINFOTITLEBAR(tr("Transponder Information"));
             offset += OSDROWHEIGHT;
-            OSDDRAWINFOLEFT( trVDR("Vpid"), *cString::sprintf("%d", channel->Vpid()));
-            OSDDRAWINFORIGHT(trVDR("Ppid"), *cString::sprintf("%d", channel->Ppid()));
+            OSDDRAWINFO(trVDR("Vpid"), *cString::sprintf("%d", channel->Vpid()), \
+                        trVDR("Ppid"), *cString::sprintf("%d", channel->Ppid()));
             offset += OSDROWHEIGHT;
-            OSDDRAWINFOLEFT(    tr("Apid"), *getApids(channel));
-            OSDDRAWINFORIGHT(   tr("Dpid"), *getDpids(channel));
+            OSDDRAWINFO(   tr("Apid"), *getApids(channel), \
+                           tr("Dpid"), *getDpids(channel));
             offset += OSDROWHEIGHT;
-            OSDDRAWINFOLEFT(    tr("Spid"), *getSpids(channel));
-            OSDDRAWINFORIGHT(trVDR("Tpid"), *cString::sprintf("%d", channel->Tpid()));
+            OSDDRAWINFO(   tr("Spid"), *getSpids(channel), \
+                        trVDR("Tpid"), *cString::sprintf("%d", channel->Tpid()));
             offset += OSDROWHEIGHT;
-            OSDDRAWINFOLEFT( trVDR("Sid"),  *cString::sprintf("%d", channel->Sid()));
-            OSDDRAWINFORIGHT(   tr("Nid"),  *cString::sprintf("%d", channel->Nid()));
+            OSDDRAWINFO( trVDR("Sid"),  *cString::sprintf("%d", channel->Sid()), \
+                            tr("Nid"),  *cString::sprintf("%d", channel->Nid()));
             offset += OSDROWHEIGHT;
-            OSDDRAWINFOLEFT(    tr("Tid"),  *cString::sprintf("%d", channel->Tid()));
-            OSDDRAWINFORIGHT(   tr("Rid"),  *cString::sprintf("%d", channel->Rid()));
+            OSDDRAWINFO(    tr("Tid"),  *cString::sprintf("%d", channel->Tid()), \
+                            tr("Rid"),  *cString::sprintf("%d", channel->Rid()));
             offset += OSDROWHEIGHT;
-            OSDDRAWINFOLEFT( trVDR("CA"),   *getCAids(channel));
+            OSDDRAWINFO( trVDR("CA"),   *getCAids(channel), "", "");
             offset += OSDROWHEIGHT;
             switch (channel->Source() & cSource::st_Mask) {
               case cSource::stSat: {
                    cDvbTransponderParameters dtp(channel->Parameters());
                    OSDDRAWINFOLINE(*cString::sprintf("%s #%d - %s", *getSatelliteSystem(dtp.System()), (svdrpFrontendM >= 0) ? svdrpFrontendM : cDevice::ActualDevice()->CardIndex(), *frontendNameM));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Frequency"),    *getFrequencyMHz(channel->Frequency()));
-                   OSDDRAWINFORIGHT(trVDR("Source"),       *cSource::ToString(channel->Source()));
+                   OSDDRAWINFO( trVDR("Frequency"),    *getFrequencyMHz(channel->Frequency()), \
+                                trVDR("Source"),       *cSource::ToString(channel->Source()));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Srate"),        *cString::sprintf("%d", channel->Srate()));
-                   OSDDRAWINFORIGHT(trVDR("Polarization"), *cString::sprintf("%c", toupper(dtp.Polarization())));
+                   OSDDRAWINFO( trVDR("Srate"),        *cString::sprintf("%d", channel->Srate()), \
+                                trVDR("Polarization"), *cString::sprintf("%c", toupper(dtp.Polarization())));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Inversion"),    *getInversion(dtp.Inversion()));
-                   OSDDRAWINFORIGHT(trVDR("CoderateH"),    *getCoderate(dtp.CoderateH()));
+                   OSDDRAWINFO( trVDR("Inversion"),    *getInversion(dtp.Inversion()), \
+                                trVDR("CoderateH"),    *getCoderate(dtp.CoderateH()));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("System"),       *getSatelliteSystem(dtp.System()));
                    if (dtp.System()) {
-                      OSDDRAWINFORIGHT(trVDR("RollOff"),   *getRollOff(dtp.RollOff()));
+                      OSDDRAWINFO( trVDR("System"),    *getSatelliteSystem(dtp.System()), \
+                                   trVDR("RollOff"),   *getRollOff(dtp.RollOff()));
                       offset += OSDROWHEIGHT;
-                      OSDDRAWINFOLEFT( trVDR("Pilot"),     *getPilot(dtp.Pilot()));
+                      OSDDRAWINFO( trVDR("Pilot"),     *getPilot(dtp.Pilot()), "", "");
+                      OSDCLEAR(18, 19);
+                      }
+                   else {
+                      OSDDRAWINFO( trVDR("System"),    *getSatelliteSystem(dtp.System()), "", "");
+                      OSDCLEAR(17, 19);
                       }
                    }
                    break;
@@ -451,14 +405,15 @@ void cFemonOsd::DrawInfoWindow(void)
                    cDvbTransponderParameters dtp(channel->Parameters());
                    OSDDRAWINFOLINE(*cString::sprintf("DVB-C #%d - %s", (svdrpFrontendM >= 0) ? svdrpFrontendM : cDevice::ActualDevice()->CardIndex(), *frontendNameM));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Frequency"),    *getFrequencyMHz(channel->Frequency()));
-                   OSDDRAWINFORIGHT(trVDR("Source"),       *cSource::ToString(channel->Source()));
+                   OSDDRAWINFO( trVDR("Frequency"),    *getFrequencyMHz(channel->Frequency()), \
+                                trVDR("Source"),       *cSource::ToString(channel->Source()));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Srate"),        *cString::sprintf("%d", channel->Srate()));
-                   OSDDRAWINFORIGHT(trVDR("Modulation"),   *getModulation(dtp.Modulation()));
+                   OSDDRAWINFO( trVDR("Srate"),        *cString::sprintf("%d", channel->Srate()), \
+                                trVDR("Modulation"),   *getModulation(dtp.Modulation()));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Inversion"),    *getInversion(dtp.Inversion()));
-                   OSDDRAWINFORIGHT(trVDR("CoderateH"),    *getCoderate(dtp.CoderateH()));
+                   OSDDRAWINFO( trVDR("Inversion"),    *getInversion(dtp.Inversion()), \
+                                trVDR("CoderateH"),    *getCoderate(dtp.CoderateH()));
+                   OSDCLEAR(16, 19);
                    }
                    break;
 
@@ -466,24 +421,29 @@ void cFemonOsd::DrawInfoWindow(void)
                    cDvbTransponderParameters dtp(channel->Parameters());
                    OSDDRAWINFOLINE(*cString::sprintf("%s #%d - %s", *getTerrestrialSystem(dtp.System()), (svdrpFrontendM >= 0) ? svdrpFrontendM : cDevice::ActualDevice()->CardIndex(), *frontendNameM));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Frequency"),    *getFrequencyMHz(channel->Frequency()));
-                   OSDDRAWINFORIGHT(trVDR("Transmission"), *getTransmission(dtp.Transmission()));
+                   OSDDRAWINFO( trVDR("Frequency"),    *getFrequencyMHz(channel->Frequency()), \
+                                trVDR("Transmission"), *getTransmission(dtp.Transmission()));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Bandwidth"),    *getBandwidth(dtp.Bandwidth()));
-                   OSDDRAWINFORIGHT(trVDR("Modulation"),   *getModulation(dtp.Modulation()));
+                   OSDDRAWINFO( trVDR("Bandwidth"),    *getBandwidth(dtp.Bandwidth()), \
+                                trVDR("Modulation"),   *getModulation(dtp.Modulation()));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Inversion"),    *getInversion(dtp.Inversion()));
-                   OSDDRAWINFORIGHT(tr   ("Coderate"),     *cString::sprintf("%s (H) %s (L)", *getCoderate(dtp.CoderateH()), *getCoderate(dtp.CoderateL())));
+                   OSDDRAWINFO( trVDR("Inversion"),    *getInversion(dtp.Inversion()), \
+                                tr   ("Coderate"),     *getCoderate(dtp.CoderateH()));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("Hierarchy"),    *getHierarchy(dtp.Hierarchy()));
-                   OSDDRAWINFORIGHT(trVDR("Guard"),        *getGuard(dtp.Guard()));
+                   OSDDRAWINFO( trVDR("Hierarchy"),    *getHierarchy(dtp.Hierarchy()), \
+                                trVDR("Guard"),        *getGuard(dtp.Guard()));
                    offset += OSDROWHEIGHT;
-                   OSDDRAWINFOLEFT( trVDR("System"),       *getTerrestrialSystem(dtp.System()));
                    if (dtp.System()) {
-                      OSDDRAWINFORIGHT(trVDR("StreamId"),  *cString::sprintf("%d", dtp.StreamId()));
+                      OSDDRAWINFO( trVDR("System"),    *getTerrestrialSystem(dtp.System()), \
+                                   trVDR("StreamId"),  *cString::sprintf("%d", dtp.StreamId()));
                       offset += OSDROWHEIGHT;
-                      OSDDRAWINFOLEFT( trVDR("T2SystemId"),*cString::sprintf("%d", dtp.T2SystemId()));
-                      OSDDRAWINFORIGHT(trVDR("SISO/MISO"), *cString::sprintf("%d", dtp.SisoMiso()));
+                      OSDDRAWINFO( trVDR("T2SystemId"),*cString::sprintf("%d", dtp.T2SystemId()), \
+                                   trVDR("SISO/MISO"), *cString::sprintf("%d", dtp.SisoMiso()));
+                      OSDCLEAR(19, 19);
+                      }
+                   else {
+                      OSDDRAWINFO( trVDR("System"),    *getTerrestrialSystem(dtp.System()), "", "");
+                      OSDCLEAR(18, 19);
                       }
                    }
                    break;
@@ -497,11 +457,16 @@ void cFemonOsd::DrawInfoWindow(void)
                       data.cardIndex = cDevice::ActualDevice()->CardIndex();
                       p = cPluginManager::CallFirstService("IptvService-v1.0", &data);
                       if (p) {
-                         OSDDRAWINFOLEFT(tr("Protocol"),   *data.protocol);
+                         OSDDRAWINFO(tr("Protocol"),   *data.protocol, "", "");
                          offset += OSDROWHEIGHT;
-                         OSDDRAWINFOLEFT(tr("Bitrate"),    *data.bitrate);
+                         OSDDRAWINFO(tr("Bitrate"),    *data.bitrate, "", "");
+                         OSDCLEAR(15, 19);
                          }
+                      else
+                         OSDCLEAR(13, 19);
                       }
+                   else
+                      OSDCLEAR(13, 19);
                    }
                    break;
 
@@ -510,8 +475,8 @@ void cFemonOsd::DrawInfoWindow(void)
               }
             OSDDRAWINFOBOTTOMBAR();
             break;
-
-       case eFemonModeStream:
+            }
+       case eFemonModeStream: {
             OSDDRAWINFOTITLEBAR(tr("Stream Information"));
             offset += OSDROWHEIGHT;
             OSDDRAWINFOACTIVE(  tr("Video Stream"),       *getVideoStream(channel->Vpid()));
@@ -537,13 +502,14 @@ void cFemonOsd::DrawInfoWindow(void)
             OSDDRAWINFOINACTIVE(tr("Bitrate"),            *getAudioBitrate(receiverM ? receiverM->AudioBitrate() : 0, receiverM ? receiverM->AudioStreamBitrate() : 0));
             offset += OSDROWHEIGHT;
             OSDDRAWINFOINACTIVE(tr("Sampling Frequency"), *getAudioSamplingFreq(receiverM ? receiverM->AudioSamplingFreq() : AUDIO_SAMPLING_FREQUENCY_INVALID));
+            OSDCLEAR(18, 19);
             OSDDRAWINFOBOTTOMBAR();
             break;
-
-       case eFemonModeAC3:
+            }
+       case eFemonModeAC3: {
             OSDDRAWINFOTITLEBAR(tr("Stream Information"));
+            offset += OSDROWHEIGHT;
             if (receiverM && receiverM->AC3Valid() && IS_DOLBY_TRACK(track)) {
-               offset += OSDROWHEIGHT;
                OSDDRAWINFOACTIVE(  tr("AC-3 Stream"),            *getAC3Stream(track, channel));
                offset += OSDROWHEIGHT;
                OSDDRAWINFOINACTIVE(tr("Bitrate"),                *getAudioBitrate(receiverM->AC3Bitrate(), receiverM->AC3StreamBitrate()));
@@ -563,13 +529,17 @@ void cFemonOsd::DrawInfoWindow(void)
                OSDDRAWINFOINACTIVE(tr("Low Frequency Effects"),  *cString::sprintf("%s", receiverM->AC3Lfe() ? trVDR("on") : trVDR("off")));
                offset += OSDROWHEIGHT;
                OSDDRAWINFOINACTIVE(tr("Dialogue Normalization"), *getAC3DialogLevel(receiverM->AC3DialogLevel()));
+               OSDCLEAR(16, 19);
                }
+            else
+               OSDCLEAR(6, 19);
             OSDDRAWINFOBOTTOMBAR();
             break;
-
-       default:
+            }
+       default: {
             OSDCLEARINFO();
             break;
+            }
        }
      osdM->Flush();
      }
@@ -717,7 +687,7 @@ void cFemonOsd::Show(void)
   const cChannel *channel = Channels->GetByNumber(cDevice::CurrentChannel());
 
   AttachFrontend();
-
+  
   osdM = cOsdProvider::NewOsd(osdLeftM, osdTopM);
   if (osdM) {
      tArea Areas1[] = { { 0, 0, OSDWIDTH - 1, OSDHEIGHT - 1, 8 } };
