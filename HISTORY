@@ -555,3 +555,7 @@ VDR Plugin 'femon' Revision History
 
 2024-04-27:
 - Makefile: silence gcc by default && link librepfunc for next changes
+- move OSD macros from osd.c to a separate header file osd-defines.h
+- osd.c: remove old __STDC_FORMAT_MACROS
+- osd.c: change C-header to C++ header
+- osd.c: add remote OSD by adding cStatus calls
