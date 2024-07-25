@@ -553,7 +553,14 @@ VDR Plugin 'femon' Revision History
 - Added signal level units (Thanks to Winfried).
 
 
-2024-04-27:
+
+
+
+/*******************************************************************************
+ * history for https://github.com/wirbel-at-vdr-portal/vdr-plugin-femon
+ ******************************************************************************/
+
+20240725:
 - Makefile: silence gcc by default && link librepfunc for next changes
 - move OSD macros from osd.c to a separate header file osd-defines.h
 - osd.c: remove old __STDC_FORMAT_MACROS
