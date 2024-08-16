@@ -224,7 +224,7 @@ int cFemonH265::parseSPS(const uint8_t *bufP, int lenP)
   uint8_t sps_max_sub_layers_minus1, sub_layer_profile_present_flag[8], sub_layer_level_present_flag[8], general_profile_idc, general_level_idc;
 
   bs.SkipBits(4);                                                    // sps_video_parameter_set_id
-  sps_max_sub_layers_minus1 = bs.GetBits(3);                         // sps_max_sub_layers_minus1
+  sps_max_sub_layers_minus1 = std::min(bs.GetBits(3), 7U);           // sps_max_sub_layers_minus1
   bs.SkipBit();                                                      // sps_temporal_id_nesting_flag
   // start of profile_tier_level(1, sps_max_sub_layers_minus1)
   if (profilePresentFlag) {
