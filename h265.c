@@ -484,13 +484,13 @@ int cFemonH265::parseSPS(const uint8_t *bufP, int lenP)
            sar_width  = bs.GetBits(16);                              // sar_width
            sar_height = bs.GetBits(16);                              // sar_height
            }
-        else if (aspect_ratio_idc < ELEMENTS(sarS)) {
+        else if (aspect_ratio_idc < ARRAY_SIZE(sarS)) {
            sar_width  = sarS[aspect_ratio_idc].w;
            sar_height = sarS[aspect_ratio_idc].h;
            }
         if (sar_width && sar_height) {
            int index = -1, ratio = int(100.0L * sar_width * width / sar_height / height);
-           for (unsigned int i = 0; i < ELEMENTS(darS); ++i) {
+           for (unsigned int i = 0; i < ARRAY_SIZE(darS); ++i) {
                if (darS[i].ratio == ratio) {
                   index = i;
                   break;
@@ -511,7 +511,7 @@ int cFemonH265::parseSPS(const uint8_t *bufP, int lenP)
         bs.SkipBit();                                                // overscan_appropriate_flag
      if (bs.GetBit()) {                                              // video_signal_type_present_flag
         uint32_t video_format = bs.GetBits(3);                       // video_format
-        if (video_format < ELEMENTS(videoFormatS)) {
+        if (video_format < ARRAY_SIZE(videoFormatS)) {
            format = videoFormatS[video_format];
            debug2("%s video_format=%d format=%d", __PRETTY_FUNCTION__, video_format, format);
            }

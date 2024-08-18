@@ -14,7 +14,7 @@
 #include <vdr/remux.h>
 #include <vdr/tools.h>
 
-#define ELEMENTS(x) (sizeof(x) / sizeof(x[0]))
+#define  ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 #define FRONTEND_DEVICE "/dev/dvb/adapter%d/frontend%d"
 

@@ -523,13 +523,13 @@ int cFemonH264::parseSPS(const uint8_t *bufP, int lenP)
            sar_width  = bs.GetBits(16);     // sar_width
            sar_height = bs.GetBits(16);     // sar_height
            }
-        else if (aspect_ratio_idc < ELEMENTS(sarS)) {
+        else if (aspect_ratio_idc < ARRAY_SIZE(sarS)) {
            sar_width  = sarS[aspect_ratio_idc].w;
            sar_height = sarS[aspect_ratio_idc].h;
            }
         if (sar_width && sar_height) {
            int index = -1, ratio = int(100.0L * sar_width * width / sar_height / height);
-           for (unsigned int i = 0; i < ELEMENTS(darS); ++i) {
+           for (unsigned int i = 0; i < ARRAY_SIZE(darS); ++i) {
                if (darS[i].ratio == ratio) {
                   index = i;
                   break;
@@ -551,7 +551,7 @@ int cFemonH264::parseSPS(const uint8_t *bufP, int lenP)
      if (bs.GetBit()) {                     // video_signal_type_present_flag
         uint32_t video_format;
         video_format = bs.GetBits(3);       // video_format
-        if (video_format < ELEMENTS(videoFormatS)) {
+        if (video_format < ARRAY_SIZE(videoFormatS)) {
            format = videoFormatS[video_format];
            debug2("%s video_format=%d", __PRETTY_FUNCTION__, format);
            }
@@ -666,7 +666,7 @@ int cFemonH264::parseSEI(const uint8_t *bufP, int lenP)
            if (picStructPresentFlagM) {                  // pic_struct_present_flag
               uint32_t pic_struct, ct_type = 0, i = 0;
               pic_struct = bs.GetBits(4);                // pic_struct
-              if (pic_struct >= ELEMENTS(seiNumClockTsTableS))
+              if (pic_struct >= ARRAY_SIZE(seiNumClockTsTableS))
                  return 0;
               if (frameMbsOnlyFlagM && !mbAdaptiveFrameFieldFlagM)
                  scan = VIDEO_SCAN_PROGRESSIVE;
