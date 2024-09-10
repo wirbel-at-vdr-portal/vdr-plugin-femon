@@ -28,3 +28,8 @@ VDR Plugin 'femon' Revision History
 - osd.c: remove old __STDC_FORMAT_MACROS
 - osd.c: change C-header to C++ header
 - osd.c: add remote OSD by adding cStatus calls
+
+20240910:
+- femon.c: replace cControl* Control(bool) by cControl* Control(cMutexLock&, bool)
+  and increase minimum required VDR version to 2.4.2
+
