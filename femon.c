@@ -17,8 +17,9 @@
 #include "tools.h"
 #include "setup.h"
 
-#if !defined(APIVERSNUM) || (APIVERSNUM < 20400)
-   #error "VDR-2.4.0 API version or greater is required!"
+#if !defined(VDRVERSNUM) || (VDRVERSNUM < 20402)
+   /* 2.4.2 added cControl::Control(cMutexLock&, bool) */
+   #error "VDR-2.4.2 or greater is required!"
 #endif
 
 #ifndef GITVERSION
@@ -120,12 +121,25 @@ cOsdObject *cPluginFemon::MainMenuAction(void)
 {
   // Perform the action when selected from the main VDR menu.
   debug1("%s", __PRETTY_FUNCTION__);
-  LOCK_CHANNELS_READ;
-  if (cControl::Control() || (Channels->Count() <= 0))
+  bool Replaying;
+  int ChannelCount = 0;
+
+  {
+  cMutexLock lock;
+  Replaying = cControl::Control(lock, false);
+  }
+
+  if (not Replaying) {
+     LOCK_CHANNELS_READ;
+     ChannelCount = Channels->Count();
+     }
+
+  if (Replaying or ChannelCount < 1) {
      Skins.Message(mtInfo, tr("Femon not available"));
+     return nullptr;
+     }
   else
      return cFemonOsd::Instance(true);
-  return NULL;
 }
 
 cMenuSetupPage *cPluginFemon::SetupMenu(void)
