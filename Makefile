@@ -53,7 +53,7 @@ INCLUDES +=
 DEFINES += -DPLUGIN_NAME_I18N='"$(PLUGIN)"'
 
 ifneq ($(strip $(GITTAG)),)
-DEFINES += -DGITVERSION='"-GIT-$(GITTAG)"'
+DEFINES += -DGITVERSION='"-$(GITTAG)"'
 endif
 
 .PHONY: all all-redirect

@@ -22,11 +22,7 @@
    #error "VDR-2.4.2 or greater is required!"
 #endif
 
-#ifndef GITVERSION
-   #define GITVERSION ""
-#endif
-
-static const char VERSION[]       = "20240725" GITVERSION;
+static const char VERSION[]       = "wirbel" GITVERSION;
 static const char DESCRIPTION[]   = trNOOP("DVB Signal Information Monitor (OSD)");
 static const char MAINMENUENTRY[] = trNOOP("Signal Information");
 
