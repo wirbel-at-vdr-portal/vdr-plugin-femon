@@ -16,7 +16,7 @@
 #define debug1(x...)  void( FemonConfig.IsTraceMode(cFemonConfig::eTraceModeDebug1)  ? dsyslog("FEMON1: " x)  : void() )
 // 0x0002: H.264
 #define debug2(x...)  void( FemonConfig.IsTraceMode(cFemonConfig::eTraceModeDebug2)  ? dsyslog("FEMON2: " x)  : void() )
-// 0x0004: TBD
+// 0x0004: CI/CAM
 #define debug3(x...)  void( FemonConfig.IsTraceMode(cFemonConfig::eTraceModeDebug3)  ? dsyslog("FEMON3: " x)  : void() )
 // 0x0008: TBD
 #define debug4(x...)  void( FemonConfig.IsTraceMode(cFemonConfig::eTraceModeDebug4)  ? dsyslog("FEMON4: " x)  : void() )
