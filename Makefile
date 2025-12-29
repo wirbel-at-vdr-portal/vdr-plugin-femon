@@ -13,6 +13,13 @@ PLUGIN = femon
 VERSION = $(shell grep 'static const char VERSION\[\] *=' $(PLUGIN).c | awk '{ print $$6 }' | sed -e 's/[";]//g')
 GITTAG  = $(shell git describe --always 2>/dev/null)
 
+#-------------- fallback for tarballs ------------
+ifeq ($(strip $(GITTAG)),)
+	GITTAG = 'tgz-20251225+'
+endif
+#-------------------------------------------------
+
+
 ### The directory environment:
 
 # Use package data if installed...otherwise assume we're under the VDR source directory:
